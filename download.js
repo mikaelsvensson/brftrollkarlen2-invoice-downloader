@@ -18,8 +18,8 @@
 var fs = require('fs');
 
 var casper = require('casper').create({
-    verbose: true,
-    logLevel: 'debug',
+    verbose: false,
+    logLevel: 'info',
     viewportSize: {
         width: 800,
         height: 500
@@ -68,21 +68,13 @@ casper.waitForSelector('.scrollFixLeftmenu', function () {
     this.click('.scrollFixLeftmenu a[title*="Webbattest"]');
 });
 
-casper.waitForPopup('http://xpandwebb.stofast.se', function () {
-    console.log("waitForPopup done");
-});
+casper.waitForPopup('http://xpandwebb.stofast.se');
 
 casper.withPopup(/xpandwebb.stofast.se/, function () {
     this.waitForSelector('#ctl00_cphMainFrame_lbtSupplierInvoiceList', function () {
-        console.log("Loaded");
-
         this.click('#ctl00_cphMainFrame_lbtSupplierInvoiceList');
 
-        this.waitForUrl(/SupplierInvoiceListSearch/, function () {
-            console.log("SupplierInvoiceListSearch loaded");
-        }, function () {
-            console.log("SupplierInvoiceListSearch timeout");
-        });
+        this.waitForUrl(/SupplierInvoiceListSearch/);
 
         this.waitForSelector('#ctl00_cphMainFrame_SupplierInvoiceUC1_realEstateObjectSelectionUC_ddlCompanies', function () {
             this.evaluate(function (index) {
@@ -105,7 +97,10 @@ casper.withPopup(/xpandwebb.stofast.se/, function () {
                 return links.length;
             });
             this.echo("Number of invoices listed: " + rows);
+
             var i = rows;//Math.min(rows, 51);
+
+            var invoicesMetadata = [];
 
             var waitFunction = function () {
 
@@ -116,12 +111,15 @@ casper.withPopup(/xpandwebb.stofast.se/, function () {
                 //this.capture('homepage' + getDate() + '.png')
                 var supplierInvoiceReference = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(1)');
                 var supplierName = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(2)');
-                //var amount = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(3)');
+                var amount = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(3)');
                 var invoiceDate = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(6)');
 
-                var targetFile = invoiceDate + " " + supplierName + " " + supplierInvoiceReference + ".pdf";
+                var targetFile = (invoiceDate + " " + supplierName + " " + supplierInvoiceReference + ".pdf").replace(/[^a-zA-Z0-9\u00C0-\u00D6\u00E0-\u00F6 ._&-]/g, '');
+
                 // Only keep characters we know and trust: the English ones and a bunch of accented ones.
-                var targetPath = outputFolder + "/" + targetFile.replace(/[^a-zA-Z0-9\u00C0-\u00D6\u00E0-\u00F6 ._&-]/g, '');//link.replace('https://entre.stofast.se', '').replace(/[^a-z0-9.]/g, '') + ".pdf";
+                var targetPath = outputFolder + "/" + targetFile;//link.replace('https://entre.stofast.se', '').replace(/[^a-z0-9.]/g, '') + ".pdf";
+
+                invoicesMetadata.push([targetFile, supplierName,supplierInvoiceReference,amount,invoiceDate].join("\t"));
 
                 if (!fs.exists(targetPath)) {
                     this.click('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ')')
@@ -147,6 +145,14 @@ casper.withPopup(/xpandwebb.stofast.se/, function () {
             };
 
             waitFunction.apply(this);
+
+            try {
+                fs.write("invoices.tsv", invoicesMetadata.join("\n"), 'w');
+            } catch (err) {
+                this.log("Failed to save invoices.tsv; please check permissions", "error");
+                this.log(err, "debug");
+                return this;
+            }
         });
     });
 });
