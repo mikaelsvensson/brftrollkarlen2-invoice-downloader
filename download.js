@@ -16,7 +16,6 @@
  */
 
 var fs = require('fs');
-var webPage = require('webpage');
 
 var casper = require('casper').create({
     verbose: true,
@@ -35,6 +34,7 @@ casper.start('https://entre.stofast.se');
 
 var username = casper.cli.options.username;
 var password = casper.cli.options.password;
+var outputFolder = casper.cli.options.directory || ".";
 
 casper.then(function () {
     this.fill('form[action="/names.nsf?Login"]', {
@@ -119,7 +119,10 @@ casper.withPopup(/xpandwebb.stofast.se/, function () {
                 //var amount = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(3)');
                 var invoiceDate = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(6)');
 
-                var targetPath = invoiceDate + " " + supplierName + " " + supplierInvoiceReference + ".pdf";//link.replace('https://entre.stofast.se', '').replace(/[^a-z0-9.]/g, '') + ".pdf";
+                var targetFile = invoiceDate + " " + supplierName + " " + supplierInvoiceReference + ".pdf";
+                // Only keep characters we know and trust: the English ones and a bunch of accented ones.
+                var targetPath = outputFolder + "/" + targetFile.replace(/[^a-zA-Z0-9\u00C0-\u00D6\u00E0-\u00F6 ._&-]/g, '');//link.replace('https://entre.stofast.se', '').replace(/[^a-z0-9.]/g, '') + ".pdf";
+
                 if (!fs.exists(targetPath)) {
                     this.click('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ')')
                     this.wait(3000, function () {
