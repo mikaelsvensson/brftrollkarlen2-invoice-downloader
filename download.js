@@ -26,9 +26,18 @@ var casper = require('casper').create({
     }
 });
 
-//function getDate() {
-//    return new Date().toISOString().replace(/[^0-9]/g, '');
-//}
+function getDate() {
+    return new Date().toISOString().replace(/[^0-9]/g, '');
+}
+
+function writeToFile(lines, filePath) {
+    try {
+        fs.write(filePath, lines.join("\n"), 'w');
+    } catch (err) {
+        this.log("Failed to save invoices.tsv; please check permissions", "error");
+        this.log(err, "debug");
+    }
+}
 
 casper.start('https://entre.stofast.se');
 
@@ -44,9 +53,9 @@ casper.then(function () {
     this.click('input#loginSubmitButton');
 });
 
-casper.on("popup.loaded", function (newPage) {
-    console.log("Loaded " + newPage.url + " in popup window.");
-});
+//casper.on("popup.loaded", function (newPage) {
+//    console.log("Loaded " + newPage.url + " in popup window.");
+//});
 
 casper.on('error', function (msg, backtrace) {
     this.echo("=========================");
@@ -92,37 +101,47 @@ casper.withPopup(/xpandwebb.stofast.se/, function () {
         });
 
         this.waitForSelector('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody', function () {
-            var rows = this.evaluate(function () {
-                var links = document.querySelectorAll('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr');
-                return links.length;
-            });
-            this.echo("Number of invoices listed: " + rows);
 
-            var i = rows;//Math.min(rows, 51);
+            const HEADER_ROW_COUNT = 1;
+
+            var rows = this.evaluate(function () {
+                return document.querySelectorAll('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr').length;
+            });
+
+            this.echo("Number of invoices listed: " + (rows - HEADER_ROW_COUNT));
+
+            var currentRow = rows;//Math.min(rows, 51);
 
             var invoicesMetadata = [];
 
-            var waitFunction = function () {
+            invoicesMetadata.push(["FIL", "LEVERANTOR", "REFERENS", "BELOPP", "DATUM"].join("\t"));
 
-                if (i < 1) {
+            var processNextRow = function () {
+
+                if (currentRow <= HEADER_ROW_COUNT) {
                     return;
                 }
 
                 //this.capture('homepage' + getDate() + '.png')
-                var supplierInvoiceReference = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(1)');
-                var supplierName = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(2)');
-                var amount = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(3)');
-                var invoiceDate = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ') td:nth-child(6)');
+                var supplierInvoiceReference = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (currentRow) + ') td:nth-child(1)');
+                var supplierName = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (currentRow) + ') td:nth-child(2)');
+                var amount = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (currentRow) + ') td:nth-child(3)');
+                var invoiceDate = this.fetchText('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (currentRow) + ') td:nth-child(6)');
 
-                var targetFile = (invoiceDate + " " + supplierName + " " + supplierInvoiceReference + ".pdf").replace(/[^a-zA-Z0-9\u00C0-\u00D6\u00E0-\u00F6 ._&-]/g, '');
+                var targetTitle = (invoiceDate + " " + supplierName + " " + supplierInvoiceReference).replace(/[^a-zA-Z0-9\u00C0-\u00D6\u00E0-\u00F6 ._&-]/g, '').trim();
+                if (targetTitle == '') {
+                    this.echo('No metadata found for invoice ' + currentRow);
+                    targetTitle = 'Untitled Invoice ' + getDate();
+                }
+                var targetFile = targetTitle + ".pdf";
 
                 // Only keep characters we know and trust: the English ones and a bunch of accented ones.
                 var targetPath = outputFolder + "/" + targetFile;//link.replace('https://entre.stofast.se', '').replace(/[^a-z0-9.]/g, '') + ".pdf";
 
-                invoicesMetadata.push([targetFile, supplierName,supplierInvoiceReference,amount,invoiceDate].join("\t"));
+                invoicesMetadata.push([targetFile, supplierName, supplierInvoiceReference, amount, invoiceDate].join("\t"));
 
                 if (!fs.exists(targetPath)) {
-                    this.click('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (i) + ')')
+                    this.click('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_gvInvoicesLr tbody tr:nth-child(' + (currentRow) + ')')
                     this.wait(3000, function () {
                         this.click('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_jqtInvoiceDocumentViewer');
                         this.wait(3000, function () {
@@ -132,27 +151,21 @@ casper.withPopup(/xpandwebb.stofast.se/, function () {
                                 var link = this.getElementAttribute('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_InvoiceDocumentViewer1_invoiceDocumentViewerIframe', 'src');
                                 this.echo("Downloading " + link + " to " + targetPath);
                                 this.download(link, targetPath);
-                                i--;
-                                this.wait(3000, waitFunction);
+                                currentRow--;
+                                this.wait(3000, processNextRow);
                             });
                         });
                     });
                 } else {
                     this.echo(targetPath + ' already downloaded. Moving on.');
-                    i--;
-                    waitFunction.apply(this);
+                    currentRow--;
+                    processNextRow.apply(this);
                 }
             };
 
-            waitFunction.apply(this);
+            processNextRow.apply(this);
 
-            try {
-                fs.write("invoices.tsv", invoicesMetadata.join("\n"), 'w');
-            } catch (err) {
-                this.log("Failed to save invoices.tsv; please check permissions", "error");
-                this.log(err, "debug");
-                return this;
-            }
+            writeToFile.call(this, invoicesMetadata, outputFolder + "/invoices-" + getDate() + ".tsv");
         });
     });
 });
