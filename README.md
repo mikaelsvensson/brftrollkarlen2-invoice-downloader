@@ -31,3 +31,17 @@ Användning
 
 2. Kör detta kommando: `node_modules\casperjs\bin\casperjs.exe download.js --username=YOUR_ENTRE_USERNAME --password=YOUR_ENTRE_PASSWORD --directory=PATH_TO_PDF_FOLDER`
 
+Om du vill ladda ner fakturorna för ett annat år än det nuvarande så kan du använda argumentet `--year` (exempel: `--year=2016`)  
+
+Felsökningar
+============
+
+Fel som kan uppstå direkt när du startar programmet:
+
+    Fatal Windows exception, code 0xc0000005.
+    PhantomJS has crashed. Please read the bug reporting guide at
+    <http://phantomjs.org/bug-reporting.html> and file a bug report.
+
+Lösningsförslag:
+
+ * Om ditt lösenordet innehåller några "ovanliga tecken" så ska du se till så att hela lösenordet är inom citationstecken.

@@ -28,6 +28,7 @@ casper.start('https://entre.stofast.se');
 var username = casper.cli.options.username;
 var password = casper.cli.options.password;
 var outputFolder = casper.cli.options.directory || ".";
+var year = casper.cli.options.year || new Date().getFullYear();
 
 /**
  * Initialise some logging. Useful in case errors need to be debugged.
@@ -74,12 +75,12 @@ casper.waitForSelector('.scrollFixLeftmenu', function () {
 /**
  * Wait for Webbattest to be opened in new window.
  */
-casper.waitForPopup('http://xpandwebb.stofast.se');
+casper.waitForPopup('http://tstxpandwebb.stofast.se');
 
 /**
  * Do the following in the Webbattest window:
  */
-casper.withPopup(/xpandwebb.stofast.se/, function () {
+casper.withPopup(/tstxpandwebb.stofast.se/, function () {
     /**
      * Wait for the "search for supplier invoices link" becomes visible...
      */
@@ -105,6 +106,13 @@ casper.withPopup(/xpandwebb.stofast.se/, function () {
         /**
          * ...and wait for the page to reload.
          */
+        this.wait(2000, function () {
+            /**
+             * Click search button:
+             */
+            casper.sendKeys('#ctl00_cphMainFrame_SupplierInvoiceUC1_jqTabs_txtVerificateAccountYear', "" + year);
+        });
+
         this.wait(5000, function () {
             /**
              * Click search button:
@@ -198,7 +206,7 @@ casper.withPopup(/xpandwebb.stofast.se/, function () {
 
             // Process first row (actually the last invoice in the search result since we start from the end):
             processNextRow.apply(this);
-        });
+        }, null, 30000);
     });
 });
 
