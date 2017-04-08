@@ -17,8 +17,8 @@ Vad skriptet gör:
 Installation
 ============
 
-1. Installera NodeJS (behöver PATH-variabeln uppdateras?)
-2. Installera PhantomJS (glöm inte att uppdatera PATH-variabeln)
+1. Installera NodeJS från https://nodejs.org/en/download/
+2. Installera PhantomJS från http://phantomjs.org/download.html (glöm inte att uppdatera Windows miljövariabel PATH så att den inkluderar sökvägen till PhantomJS bin-mapp)
 3. Ladda ner det här git-repot, antingen som en zip-fil eller mha. `git clone`
 4. Starta en kommandoprompt i mappen där skriptet finns och kör `npm install`
     
@@ -44,4 +44,5 @@ Fel som kan uppstå direkt när du startar programmet:
 
 Lösningsförslag:
 
+ * Försök igen. Det händer ibland att PhantomJS kraschar innan nedladdningen hinner starta och ibland hjälper det att helt enkelt testa igen.
  * Om ditt lösenordet innehåller några "ovanliga tecken" så ska du se till så att hela lösenordet är inom citationstecken.
